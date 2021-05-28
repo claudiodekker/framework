@@ -408,7 +408,7 @@ abstract class Factory
     protected function expandAttributes(array $definition)
     {
         return collect($definition)->map(function ($attribute, $key) use (&$definition) {
-            if (is_callable($attribute) && ! is_string($attribute) && ! is_array($attribute)) {
+            if (\is_callable($attribute) && ! \is_string($attribute) && ! \is_array($attribute)) {
                 $attribute = $attribute($definition);
             }
 
@@ -434,7 +434,7 @@ abstract class Factory
     {
         return $this->newInstance([
             'states' => $this->states->concat([
-                is_callable($state) ? $state : function () use ($state) {
+                \is_callable($state) ? $state : function () use ($state) {
                     return $state;
                 },
             ]),
@@ -760,7 +760,7 @@ abstract class Factory
 
         $relationship = Str::camel(Str::substr($method, 3));
 
-        $relatedModel = get_class($this->newModel()->{$relationship}()->getRelated());
+        $relatedModel = \get_class($this->newModel()->{$relationship}()->getRelated());
 
         if (method_exists($relatedModel, 'newFactory')) {
             $factory = $relatedModel::newFactory() ?: static::factoryForModel($relatedModel);
@@ -774,7 +774,7 @@ abstract class Factory
             return $this->has(
                 $factory
                     ->count(is_numeric($parameters[0] ?? null) ? $parameters[0] : 1)
-                    ->state((is_callable($parameters[0] ?? null) || is_array($parameters[0] ?? null)) ? $parameters[0] : ($parameters[1] ?? [])),
+                    ->state((\is_callable($parameters[0] ?? null) || \is_array($parameters[0] ?? null)) ? $parameters[0] : ($parameters[1] ?? [])),
                 $relationship
             );
         }
