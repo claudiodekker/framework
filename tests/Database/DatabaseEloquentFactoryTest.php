@@ -277,6 +277,9 @@ class DatabaseEloquentFactoryTest extends TestCase
 
         FactoryTestPostFactory::new()->create(['user_id' => $user->id]);
         $this->assertCount(2, FactoryTestUser::all());
+
+        FactoryTestPostFactory::new()->create(['user_id' => FactoryTestUserFactory::new()]);
+        $this->assertCount(3, FactoryTestUser::all());
     }
 
     public function test_has_many_relationship()
