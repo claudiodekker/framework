@@ -277,17 +277,31 @@ abstract class Factory
      */
     public function create($attributes = [], ?Model $parent = null)
     {
+        $results = $this->make([], $parent);
+
+        $expandedAttributes = [];
         if (! empty($attributes)) {
-            return $this->state($attributes)->create([], $parent);
+            // TODO: What I don't like here, is that the attributes are now expanded twice,
+            // which could potentially lead to weird behavior (see makeInstance method).
+            $expandedAttributes = $this->expandAttributes(
+                $this->resolveAttributes(
+                    $this->wrapState($attributes),
+                    $this->getRawAttributes($parent),
+                    $parent
+                )
+            );
         }
 
-        $results = $this->make($attributes, $parent);
-
         if ($results instanceof Model) {
+            $results->forceFill($expandedAttributes);
+
             $this->store(collect([$results]));
 
             $this->callAfterCreating(collect([$results]), $parent);
+
         } else {
+            $results->each->forceFill($expandedAttributes);
+
             $this->store($results);
 
             $this->callAfterCreating($results, $parent);
@@ -426,7 +440,7 @@ abstract class Factory
      * Get a raw attributes array for the model.
      *
      * @param  \Illuminate\Database\Eloquent\Model|null  $parent
-     * @return mixed
+     * @return array
      */
     protected function getExpandedAttributes(?Model $parent)
     {
@@ -446,11 +460,7 @@ abstract class Factory
                 return $this->parentResolvers();
             }], $states->all()));
         })->reduce(function ($carry, $state) use ($parent) {
-            if ($state instanceof Closure) {
-                $state = $state->bindTo($this);
-            }
-
-            return array_merge($carry, $state($carry, $parent));
+            return array_merge($carry, $this->resolveAttributes($state, $carry, $parent));
         }, $this->definition());
     }
 
@@ -511,9 +521,7 @@ abstract class Factory
     {
         return $this->newInstance([
             'states' => $this->states->concat([
-                is_callable($state) ? $state : function () use ($state) {
-                    return $state;
-                },
+                $this->wrapState($state),
             ]),
         ]);
     }
@@ -946,5 +954,35 @@ abstract class Factory
                 $relationship
             );
         }
+    }
+
+    /**
+     * Wrap the given state in a Closure if it is not already one.
+     *
+     * @param  (callable(array<string, mixed>, TModel|null): array<string, mixed>)|array<string, mixed>  $state
+     * @return callable(array<string, mixed>, TModel|null): array<string, mixed>
+     */
+    protected function wrapState(array|callable $state): callable
+    {
+        return is_callable($state) ? $state : function () use ($state) {
+            return $state;
+        };
+    }
+
+    /**
+     * Resolve new attribute state.
+     *
+     * @param  callable  $resolver
+     * @param  array  $state
+     * @param  \Illuminate\Database\Eloquent\Model|null  $parent
+     * @return array
+     */
+    protected function resolveAttributes(callable $resolver, array $state, ?Model $parent): array
+    {
+        if ($resolver instanceof Closure) {
+            $resolver = $resolver->bindTo($this);
+        }
+
+        return $resolver($state, $parent);
     }
 }
