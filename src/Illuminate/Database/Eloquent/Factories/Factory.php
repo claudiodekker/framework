@@ -298,7 +298,6 @@ abstract class Factory
             $this->store(collect([$results]));
 
             $this->callAfterCreating(collect([$results]), $parent);
-
         } else {
             $results->each->forceFill($expandedAttributes);
 
