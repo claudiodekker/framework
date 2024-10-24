@@ -9,6 +9,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Enumerable;
@@ -125,7 +126,7 @@ abstract class Factory
      *
      * @var array
      */
-    protected array $expandedMakeAttributes = [];
+    protected static $expandedMakeAttributes = [];
 
     /**
      * Create a new factory instance.
@@ -284,11 +285,11 @@ abstract class Factory
      */
     public function create($attributes = [], ?Model $parent = null)
     {
-        $results = $this->make([], $parent);
+        $results = $this->state($attributes)->make([], $parent);
 
         Collection::wrap($results)->each(function (Model $model) use ($attributes, $parent) {
             $transformer = $this->wrapStateTransformer($attributes);
-            $makeAttributes = $this->expandedMakeAttributes[spl_object_hash($model)];
+            $makeAttributes = Arr::pull(static::$expandedMakeAttributes, spl_object_hash($model));
 
             $resolved = $this->resolveStateAttributes($transformer, $makeAttributes, $parent);
 
@@ -431,7 +432,7 @@ abstract class Factory
             $attributes = $this->getExpandedAttributes($parent);
 
             return tap($this->newModel($attributes), function ($instance) use ($attributes) {
-                $this->expandedMakeAttributes[spl_object_hash($instance)] = $attributes;
+                Arr::set(static::$expandedMakeAttributes, spl_object_hash($instance), $attributes);
 
                 if (isset($this->connection)) {
                     $instance->setConnection($this->connection);
